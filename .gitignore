@@ -1,0 +1,50 @@
+# Java
+/target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Maven
+/.mvn/
+**/target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ
+/.idea/
+*.iml
+out/
+
+# VS Code
+.vscode/
+
+# Node
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.env
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# uploads (local storage)
+/backend/uploads/
+
+# Spring Boot devtools
+spring-boot-devtools.properties
+
+# environment
+.env
+
+# temporary
+*.tmp
+*.swp
+
+# exclude git-credentials or tokens
+**/secrets.properties
+**/credentials.json
+
