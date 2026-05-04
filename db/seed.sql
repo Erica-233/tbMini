@@ -43,34 +43,45 @@ VALUES
 ('Technology', 'technology', 'Tech news, programming, and gadgets.', 1, 2, DATE_ADD(NOW(3), INTERVAL 2 SECOND), DATE_ADD(NOW(3), INTERVAL 2 SECOND));
 
 -- --------------------------------------------------------
--- 3) Sample Posts
+-- 3) Sample Posts (with image_url for list display)
 -- --------------------------------------------------------
-INSERT INTO posts (board_id, user_id, title, content, body_md, status, like_count, comment_count, created_at, updated_at)
+INSERT INTO posts (board_id, user_id, title, content, body_md, image_url, status, like_count, comment_count, created_at, updated_at)
 VALUES
 (1, 2,
  'Welcome to the General board!',
  '<p>Feel free to introduce yourself here.</p>',
  'Feel free to introduce yourself here.',
+ NULL,
  'PUBLISHED', 0, 2, NOW(3), NOW(3)),
 
 (2, 3,
  'Sunset photography tips',
- '<p>Share your best sunset shots and editing tips!</p>',
  'Share your best sunset shots and editing tips!',
+ 'Share your best sunset shots and editing tips!',
+ 'https://picsum.photos/seed/sunset/800/600.jpg',
  'PUBLISHED', 1, 1, DATE_ADD(NOW(3), INTERVAL 1 SECOND), DATE_ADD(NOW(3), INTERVAL 1 SECOND)),
+
+(2, 2,
+ 'Beautiful mountain landscape',
+ 'Check out this amazing view!',
+ 'Check out this amazing view!',
+ 'https://picsum.photos/seed/mountain/800/600.jpg',
+ 'PUBLISHED', 0, 0, DATE_ADD(NOW(3), INTERVAL 2 SECOND), DATE_ADD(NOW(3), INTERVAL 2 SECOND)),
 
 (1, 4,
  'What are you working on this weekend?',
  '<p>Just curious about side projects.</p>',
  'Just curious about side projects.',
- 'PUBLISHED', 0, 0, DATE_ADD(NOW(3), INTERVAL 2 SECOND), DATE_ADD(NOW(3), INTERVAL 2 SECOND));
+ NULL,
+ 'PUBLISHED', 0, 0, DATE_ADD(NOW(3), INTERVAL 3 SECOND), DATE_ADD(NOW(3), INTERVAL 3 SECOND));
 
 -- --------------------------------------------------------
--- 4) Sample Post Images
+-- 4) Sample Post Images (for detail page gallery)
 -- --------------------------------------------------------
 INSERT INTO post_images (post_id, image_url, sort_order, created_at)
 VALUES
-(2, 'https://example.com/images/sunset-demo.jpg', 0, NOW(3));
+(2, 'https://picsum.photos/seed/sunset/800/600.jpg', 0, NOW(3)),
+(3, 'https://picsum.photos/seed/mountain/800/600.jpg', 0, NOW(3));
 
 -- --------------------------------------------------------
 -- 5) Sample Comments（两层结构）

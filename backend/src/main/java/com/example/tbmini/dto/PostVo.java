@@ -10,6 +10,7 @@ public class PostVo {
     private Long boardId;
     private String boardName;
     private Long userId;
+    private String username;
     private String userNickname;
     private String userAvatar;
     private String title;

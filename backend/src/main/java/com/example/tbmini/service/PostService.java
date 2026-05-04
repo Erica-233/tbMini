@@ -217,6 +217,7 @@ public class PostService {
         User user = userMapper.selectById(post.getUserId());
         if (user != null) {
             vo.setUserId(user.getId());
+            vo.setUsername(user.getUsername());
             vo.setUserNickname(user.getNickname());
             vo.setUserAvatar(user.getAvatar());
         }

@@ -4,7 +4,7 @@
       <el-avatar v-if="post.userAvatar" :src="post.userAvatar" :size="32" />
       <el-avatar v-else :size="32">{{ post.userNickname?.[0] }}</el-avatar>
       <div class="meta">
-        <span class="nickname">{{ post.userNickname }}</span>
+        <span class="nickname" @click.stop="goUser">{{ post.userNickname }}</span>
         <span class="time">{{ formatDate(post.createdAt) }}</span>
       </div>
       <el-tag v-if="post.boardName" size="small" type="info">{{ post.boardName }}</el-tag>
@@ -45,6 +45,12 @@ const router = useRouter()
 
 function goDetail() {
   router.push(`/p/${props.post.id}`)
+}
+
+function goUser() {
+  if (props.post.username) {
+    router.push(`/u/${props.post.username}`)
+  }
 }
 
 function formatDate(d: string) {

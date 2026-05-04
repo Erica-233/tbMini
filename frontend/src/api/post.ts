@@ -5,6 +5,7 @@ export interface PostVo {
   boardId: number
   boardName: string
   userId: number
+  username: string
   userNickname: string
   userAvatar: string
   title: string
@@ -21,6 +22,7 @@ export interface PostDetailResponse {
   boardId: number
   boardName: string
   userId: number
+  username: string
   userNickname: string
   userAvatar: string
   title: string
@@ -38,6 +40,7 @@ export interface PostListItemVo {
   boardId: number
   boardName: string
   userId: number
+  username: string
   userNickname: string
   userAvatar: string
   title: string

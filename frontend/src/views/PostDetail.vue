@@ -6,7 +6,7 @@
         <el-avatar v-if="post.userAvatar" :src="post.userAvatar" :size="40" />
         <el-avatar v-else :size="40">{{ post.userNickname?.[0] }}</el-avatar>
         <div class="post-meta">
-          <div class="nickname">{{ post.userNickname }}</div>
+          <div class="nickname" style="cursor: pointer" @click="goUser">{{ post.userNickname }}</div>
           <div class="time">{{ formatDate(post.createdAt) }} · {{ post.boardName }}</div>
         </div>
       </div>
@@ -170,6 +170,12 @@ async function onDelete() {
 
 function formatDate(d: string) {
   return d ? d.replace('T', ' ').slice(0, 16) : ''
+}
+
+function goUser() {
+  if (post.value?.username) {
+    router.push(`/u/${post.value.username}`)
+  }
 }
 
 onMounted(load)

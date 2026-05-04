@@ -5,6 +5,7 @@ import { getMe } from '@/api/auth'
 export interface UserInfo {
   id: number
   email: string
+  username: string
   nickname: string
   role: string
   avatar: string

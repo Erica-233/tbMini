@@ -53,7 +53,7 @@ public class AuthService {
         User user = userMapper.selectOne(new QueryWrapper<User>().eq("email", principal.getUsername()));
         String token = jwtUtil.generateToken(user.getId(), user.getEmail(), user.getRole());
         return new LoginResponse(token,
-                new LoginResponse.UserInfo(user.getId(), user.getEmail(), user.getNickname(), user.getRole(), user.getAvatar()));
+                new LoginResponse.UserInfo(user.getId(), user.getEmail(), user.getUsername(), user.getNickname(), user.getRole(), user.getAvatar()));
     }
 
     public UserResponse getCurrentUser(Long userId) {

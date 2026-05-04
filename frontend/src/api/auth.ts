@@ -16,6 +16,7 @@ export interface LoginResponse {
   user: {
     id: number
     email: string
+    username: string
     nickname: string
     role: string
     avatar: string

@@ -8,6 +8,9 @@ Usage: Open PowerShell, run as your user (not admin), and:
 
 param()
 
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
 function Prompt-YesNo([string]$msg, [switch]$defaultYes) {
     $yn = if ($defaultYes) { "[Y/n]" } else { "[y/N]" }
     while ($true) {
@@ -16,6 +19,31 @@ function Prompt-YesNo([string]$msg, [switch]$defaultYes) {
         if ($r -match '^[yY](es)?$') { return $true }
         if ($r -match '^[nN](o)?$') { return $false }
     }
+}
+
+function Invoke-Git {
+    param(
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]]$Args
+    )
+
+    & git @Args
+    if ($LASTEXITCODE -ne 0) {
+        throw "git $($Args -join ' ') failed with exit code $LASTEXITCODE."
+    }
+}
+
+function Get-GitOutput {
+    param(
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]]$Args
+    )
+
+    $output = & git @Args 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        return $null
+    }
+    return (($output | Out-String).Trim())
 }
 
 # Defaults
@@ -33,22 +61,25 @@ if (-not (Test-Path $repoPath)) {
 Set-Location $repoPath
 
 # Check git
-try {
-    git --version | Out-Null
-} catch {
+& git --version | Out-Null
+if ($LASTEXITCODE -ne 0) {
     Write-Error "git is not installed or not in PATH. Install Git for Windows and try again."; exit 1
 }
 
 # Show current git user
-$gitName = git config --global user.name 2>$null
-$gitEmail = git config --global user.email 2>$null
-Write-Host "Git global user.name=$gitName user.email=$gitEmail"
+$gitName = Get-GitOutput config --global user.name
+$gitEmail = Get-GitOutput config --global user.email
+if ($gitName -and $gitEmail) {
+    Write-Host "Git global user.name=$gitName user.email=$gitEmail"
+} else {
+    Write-Warning "Git global identity is incomplete. Set user.name and user.email before creating commits."
+}
 
 # Check .git
 $hasGit = Test-Path (Join-Path $repoPath ".git")
 if (-not $hasGit) {
     if (Prompt-YesNo "No .git found in the folder. Initialize a new git repository?" -defaultYes) {
-        git init
+        Invoke-Git init
         Write-Host "Initialized new git repository."
     } else {
         Write-Error "Aborting. Please initialize git manually and re-run this script."; exit 1
@@ -56,6 +87,9 @@ if (-not $hasGit) {
 } else {
     Write-Host ".git directory exists. Using existing repository."
 }
+
+# Ensure required identity exists before any commit path.
+$canCommit = [bool]($gitName -and $gitEmail)
 
 # Ensure .gitignore exists
 if (-not (Test-Path (Join-Path $repoPath ".gitignore"))) {
@@ -68,71 +102,82 @@ if (-not (Test-Path (Join-Path $repoPath ".gitignore"))) {
 /.idea/
 .env
 "@ | Out-File -FilePath .gitignore -Encoding UTF8
-        git add .gitignore
-        git commit -m "Add .gitignore" -q
-        Write-Host "Created and committed .gitignore"
+        if ($canCommit) {
+            Invoke-Git add .gitignore
+            Invoke-Git commit -m "Add .gitignore"
+            Write-Host "Created and committed .gitignore"
+        } else {
+            Write-Warning "Created .gitignore, but skipped commit because git identity is not configured."
+        }
     }
 }
 
 # Large files check (>100MB)
 Write-Host "Scanning for files > 100MB (this may take a moment)..."
-$bigFiles = Get-ChildItem -Path $repoPath -Recurse -ErrorAction SilentlyContinue | Where-Object { -not $_.PSIsContainer -and $_.Length -gt 100MB } | Select-Object FullName,Length
+$bigFiles = Get-ChildItem -Path $repoPath -Recurse -File -Force -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -notmatch '\\(\.git|node_modules|target|dist)\\' -and $_.Length -gt 100MB } |
+    Select-Object FullName,Length
 if ($bigFiles) {
     Write-Host "Found large files:"; $bigFiles | ForEach-Object { Write-Host "  $($_.FullName) - $([math]::Round($_.Length/1MB,2)) MB" }
     Write-Host "If these files are not intended, remove them or use Git LFS before pushing."
     if (Prompt-YesNo "Run 'git lfs install' and track patterns? (You must have Git LFS installed)" ) {
-        git lfs install
+        Invoke-Git lfs install
         Write-Host "Git LFS initialized. You'll need to 'git lfs track' specific patterns and re-commit large files manually."
     }
 }
 
 # Remote handling
-$remotes = git remote -v 2>$null
+$remotes = & git remote -v 2>$null
 Write-Host "Existing remotes:"; if ($remotes) { Write-Host $remotes } else { Write-Host "<none>" }
 
 $remoteUrl = Read-Host "Enter remote URL (press Enter for default: $remoteDefault)"
 if ([string]::IsNullOrWhiteSpace($remoteUrl)) { $remoteUrl = $remoteDefault }
 
-$originExists = (git remote | Select-String -Pattern "^origin$" -Quiet)
+$originExists = ((& git remote) -contains 'origin')
 if ($originExists) {
     Write-Host "Remote 'origin' already exists."
-    if (Prompt-YesNo "Rename existing 'origin' to 'origin-backup' and set the new remote URL as 'origin'? (safe)" ) {
-        git remote rename origin origin-backup
-        git remote add origin $remoteUrl
-        Write-Host "Renamed origin -> origin-backup and added new origin"
-    } else {
-        if (Prompt-YesNo "Replace URL of existing 'origin' with the new remote URL?" ) {
-            git remote set-url origin $remoteUrl
+    $currentOrigin = Get-GitOutput remote get-url origin
+    if ($currentOrigin -and ($currentOrigin -ne $remoteUrl)) {
+        Write-Warning "Current origin is '$currentOrigin', which does not match the target '$remoteUrl'."
+        if (Prompt-YesNo "Replace the existing origin URL with the target repository?" ) {
+            Invoke-Git remote set-url origin $remoteUrl
             Write-Host "Updated origin URL."
         } else {
-            Write-Host "Keeping existing origin. Will push to existing origin unless you change it later."
+            Write-Error "Aborting to avoid pushing to the wrong repository."; exit 1
         }
+    } else {
+        Write-Host "origin already points to the target repository."
     }
 } else {
-    git remote add origin $remoteUrl
+    Invoke-Git remote add origin $remoteUrl
     Write-Host "Added remote origin -> $remoteUrl"
 }
 
 # Check for any commits
 $hasCommits = $true
-try {
-    git rev-parse --verify HEAD > $null 2>&1
-} catch {
+& git rev-parse --verify HEAD > $null 2>&1
+if ($LASTEXITCODE -ne 0) {
     $hasCommits = $false
 }
 
 if (-not $hasCommits) {
+    if (-not $canCommit) {
+        Write-Error "This repository has no commits yet, but git user.name/user.email are not configured. Set them before rerunning this script."; exit 1
+    }
     Write-Host "No commits yet. Creating initial commit."
-    git add .
-    git commit -m "Initial import from local project" -q
+    Invoke-Git add .
+    Invoke-Git commit -m "Initial import from local project"
     Write-Host "Committed."
 } else {
     Write-Host "Repository already has commits. You can still push existing history."
     if (Prompt-YesNo "Stage all changes and create a new commit?" ) {
-        git add .
+        if (-not $canCommit) {
+            Write-Error "Git user.name/user.email are not configured, so a new commit cannot be created."; exit 1
+        }
+        Invoke-Git add .
         $msg = Read-Host "Enter commit message (default: 'Update from local')"
         if ([string]::IsNullOrWhiteSpace($msg)) { $msg = "Update from local" }
-        git commit -m "$msg" -q
+        Invoke-Git commit -m $msg
         Write-Host "Committed changes."
     }
 }
@@ -141,12 +186,19 @@ if (-not $hasCommits) {
 $branch = Read-Host "Branch to push (default: $branchDefault)"
 if ([string]::IsNullOrWhiteSpace($branch)) { $branch = $branchDefault }
 
-# Set branch name locally
-try { git branch -M $branch } catch { }
+# Confirm branch name locally only if needed.
+$currentBranch = Get-GitOutput branch --show-current
+if ($currentBranch -and ($currentBranch -ne $branch)) {
+    if (Prompt-YesNo "Rename local branch '$currentBranch' to '$branch' before pushing?" ) {
+        Invoke-Git branch -M $branch
+    } else {
+        Write-Warning "Keeping local branch '$currentBranch'. The push will still target remote branch '$branch'."
+    }
+}
 
 if (Prompt-YesNo "Push to remote 'origin' branch '$branch' now?" -defaultYes) {
     Write-Host "About to push. If using HTTPS you will be prompted for credentials (username and PAT as password)."
-    git push --set-upstream origin $branch
+    Invoke-Git push --set-upstream origin "HEAD:$branch"
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Push successful. Repository available at: $remoteUrl"
     } else {
